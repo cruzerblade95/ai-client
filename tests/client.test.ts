@@ -1,49 +1,210 @@
 import { describe, expect, it, vi } from "vitest";
+
 import { AIClient } from "../src/client.js";
 import { AIClientError } from "../src/errors/ai-client.error.js";
-import type { AIProviderClient } from "../src/types/provider.js";
 
-class StubProvider implements AIProviderClient {
-  public readonly generateText = vi.fn();
-}
+import type { AIProviderClient } from "../src/types/provider.js";
+import type { GenerateTextRequest } from "../src/types/client.js";
+
+import type {
+  GenerateTextResponse,
+} from "../src/types/response.js";
 
 describe("AIClient", () => {
-  it("returns generated text from the selected provider", async () => {
-    const provider = new StubProvider();
-    provider.generateText.mockResolvedValue({
-      text: "Hello from AI",
-      model: "test-model",
-      provider: "bedrock"
-    });
+  const createMockProvider = (): AIProviderClient => ({
+    generateText: vi.fn(
+      async (
+        request: GenerateTextRequest,
+      ): Promise<GenerateTextResponse> => ({
+        text: `Response for: ${request.prompt}`,
+        model: "test-model",
+        provider: "test",
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+        },
+      }),
+    ),
+  });
 
-    const client = new AIClient(
+  const createClient = (
+    provider?: AIProviderClient,
+  ): AIClient => {
+    return new AIClient(
       {
         provider: "bedrock",
+        region: "us-east-1",
         model: "test-model",
-        region: "us-east-1"
+        maxRetries: 0,
+        timeout: 30_000,
       },
-      provider
+      provider,
     );
+  };
 
-    const response = await client.generateText({ prompt: "Say hello" });
+  describe("constructor", () => {
+    it("creates an AI client with valid configuration", () => {
+      const provider = createMockProvider();
 
-    expect(response.text).toBe("Hello from AI");
-    expect(provider.generateText).toHaveBeenCalledWith({ prompt: "Say hello" });
-  });
+      expect(() => {
+        createClient(provider);
+      }).not.toThrow();
+    });
 
-  it("rejects empty prompts", async () => {
-    const client = new AIClient({ provider: "bedrock", model: "test-model", region: "us-east-1" });
+    it("rejects invalid configuration", () => {
+      expect(() => {
+        new AIClient({
+          provider: "bedrock",
+          model: "",
+          region: "",
+        });
+      }).toThrowError(
+        expect.objectContaining({
+          code: "INVALID_CONFIGURATION",
+        }),
+      );
+    });
 
-    await expect(client.generateText({ prompt: "   " })).rejects.toMatchObject({
-      code: "INVALID_PROMPT"
+    it("rejects missing model", () => {
+      expect(() => {
+        new AIClient({
+          provider: "bedrock",
+          model: "",
+          region: "us-east-1",
+        });
+      }).toThrowError(
+        expect.objectContaining({
+          code: "INVALID_CONFIGURATION",
+        }),
+      );
+    });
+
+    it("rejects missing region", () => {
+      expect(() => {
+        new AIClient({
+          provider: "bedrock",
+          model: "test-model",
+          region: "",
+        });
+      }).toThrowError(
+        expect.objectContaining({
+          code: "INVALID_CONFIGURATION",
+        }),
+      );
+    });
+
+    it("rejects an unsupported provider", () => {
+      expect(() => {
+        new AIClient({
+          provider: "unsupported" as never,
+          model: "test-model",
+          region: "us-east-1",
+        });
+      }).toThrowError(
+        expect.objectContaining({
+          code: "UNSUPPORTED_PROVIDER",
+        }),
+      );
     });
   });
 
-  it("rejects invalid configuration", async () => {
-    const client = new AIClient({ provider: "bedrock", model: "", region: "" });
+  describe("generateText", () => {
+    it("generates text successfully", async () => {
+      const provider = createMockProvider();
 
-    await expect(client.generateText({ prompt: "hello" })).rejects.toMatchObject({
-      code: "INVALID_CONFIGURATION"
+      const client = createClient(provider);
+
+      const response = await client.generateText({
+        prompt: "Hello AI",
+      });
+
+      expect(response).toEqual({
+        text: "Response for: Hello AI",
+        model: "test-model",
+        provider: "test",
+        usage: {
+          inputTokens: 10,
+          outputTokens: 20,
+        },
+      });
+
+      expect(provider.generateText).toHaveBeenCalledTimes(1);
+
+      expect(provider.generateText).toHaveBeenCalledWith({
+        prompt: "Hello AI",
+      });
+    });
+
+    it("rejects an empty prompt", async () => {
+      const provider = createMockProvider();
+
+      const client = createClient(provider);
+
+      await expect(
+        client.generateText({
+          prompt: "",
+        }),
+      ).rejects.toMatchObject({
+        code: "INVALID_PROMPT",
+      });
+
+      expect(provider.generateText).not.toHaveBeenCalled();
+    });
+
+    it("rejects a whitespace-only prompt", async () => {
+      const provider = createMockProvider();
+
+      const client = createClient(provider);
+
+      await expect(
+        client.generateText({
+          prompt: "   ",
+        }),
+      ).rejects.toMatchObject({
+        code: "INVALID_PROMPT",
+      });
+
+      expect(provider.generateText).not.toHaveBeenCalled();
+    });
+
+    it("passes the request to the provider", async () => {
+      const provider = createMockProvider();
+
+      const client = createClient(provider);
+
+      const request: GenerateTextRequest = {
+        prompt: "Analyze this portfolio",
+        systemPrompt: "You are a financial analyst",
+        maxTokens: 500,
+        temperature: 0.7,
+      };
+
+      await client.generateText(request);
+
+      expect(provider.generateText).toHaveBeenCalledWith(
+        request,
+      );
+    });
+  });
+
+  describe("errors", () => {
+    it("preserves provider errors", async () => {
+      const providerError = new AIClientError(
+        "Provider failed",
+        "PROVIDER_ERROR",
+      );
+
+      const provider: AIProviderClient = {
+        generateText: vi.fn().mockRejectedValue(providerError),
+      };
+
+      const client = createClient(provider);
+
+      await expect(
+        client.generateText({
+          prompt: "Hello",
+        }),
+      ).rejects.toThrow(providerError);
     });
   });
 });

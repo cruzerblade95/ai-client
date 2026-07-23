@@ -1,0 +1,62 @@
+{
+  "name": "@cruzerblade95/ai-client",
+  "version": "0.1.0",
+  "description": "A provider-agnostic TypeScript-first AI SDK with AWS Bedrock support.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup && tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepublishOnly": "pnpm run typecheck && pnpm run test && pnpm run build"
+  },
+  "keywords": [
+    "ai",
+    "sdk",
+    "typescript",
+    "bedrock",
+    "aws"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cruzerblade95/ai-client.git"
+  },
+  "bugs": {
+    "url": "https://github.com/cruzerblade95/ai-client/issues"
+  },
+  "homepage": "https://github.com/cruzerblade95/ai-client",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@types/node": "^24.2.0",
+    "prettier": "^3.5.4",
+    "tsup": "^8.3.3",
+    "typescript": "^5.8.3",
+    "vitest": "^2.1.4"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.29.0"
+  }
+}

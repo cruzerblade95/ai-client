@@ -13,4 +13,5 @@ export interface GenerateTextRequest {
   systemPrompt?: string;
   maxTokens?: number;
   temperature?: number;
+  signal?: AbortSignal;
 }

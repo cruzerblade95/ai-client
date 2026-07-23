@@ -6,39 +6,31 @@ import { AIClientError } from "../src/errors/ai-client.error.js";
 import type { AIProviderClient } from "../src/types/provider.js";
 import type { GenerateTextRequest } from "../src/types/client.js";
 
-import type {
-  GenerateTextResponse,
-} from "../src/types/response.js";
+import type { GenerateTextResponse } from "../src/types/response.js";
 
 describe("AIClient", () => {
   const createMockProvider = (): AIProviderClient => ({
-    generateText: vi.fn(
-      async (
-        request: GenerateTextRequest,
-      ): Promise<GenerateTextResponse> => ({
-        text: `Response for: ${request.prompt}`,
-        model: "test-model",
-        provider: "test",
-        usage: {
-          inputTokens: 10,
-          outputTokens: 20,
-        },
-      }),
-    ),
+    generateText: vi.fn(async (request: GenerateTextRequest): Promise<GenerateTextResponse> => ({
+      text: `Response for: ${request.prompt}`,
+      model: "test-model",
+      provider: "test",
+      usage: {
+        inputTokens: 10,
+        outputTokens: 20
+      }
+    }))
   });
 
-  const createClient = (
-    provider?: AIProviderClient,
-  ): AIClient => {
+  const createClient = (provider?: AIProviderClient): AIClient => {
     return new AIClient(
       {
         provider: "bedrock",
         region: "us-east-1",
         model: "test-model",
         maxRetries: 0,
-        timeout: 30_000,
+        timeout: 30_000
       },
-      provider,
+      provider
     );
   };
 
@@ -56,12 +48,12 @@ describe("AIClient", () => {
         new AIClient({
           provider: "bedrock",
           model: "",
-          region: "",
+          region: ""
         });
       }).toThrowError(
         expect.objectContaining({
-          code: "INVALID_CONFIGURATION",
-        }),
+          code: "INVALID_CONFIGURATION"
+        })
       );
     });
 
@@ -70,12 +62,12 @@ describe("AIClient", () => {
         new AIClient({
           provider: "bedrock",
           model: "",
-          region: "us-east-1",
+          region: "us-east-1"
         });
       }).toThrowError(
         expect.objectContaining({
-          code: "INVALID_CONFIGURATION",
-        }),
+          code: "INVALID_CONFIGURATION"
+        })
       );
     });
 
@@ -84,12 +76,12 @@ describe("AIClient", () => {
         new AIClient({
           provider: "bedrock",
           model: "test-model",
-          region: "",
+          region: ""
         });
       }).toThrowError(
         expect.objectContaining({
-          code: "INVALID_CONFIGURATION",
-        }),
+          code: "INVALID_CONFIGURATION"
+        })
       );
     });
 
@@ -98,14 +90,44 @@ describe("AIClient", () => {
         new AIClient({
           provider: "unsupported" as never,
           model: "test-model",
-          region: "us-east-1",
+          region: "us-east-1"
         });
       }).toThrowError(
         expect.objectContaining({
-          code: "UNSUPPORTED_PROVIDER",
-        }),
+          code: "UNSUPPORTED_PROVIDER"
+        })
       );
     });
+  });
+
+  it.each([{ maxRetries: -1 }, { maxRetries: 1.5 }, { timeout: 0 }, { timeout: -100 }])(
+    "rejects invalid options: %o",
+    (invalidOptions) => {
+      expect(
+        () =>
+          new AIClient({
+            provider: "bedrock",
+            region: "us-east-1",
+            model: "test-model",
+            ...invalidOptions
+          })
+      ).toThrowError(expect.objectContaining({ code: "INVALID_CONFIGURATION" }));
+    }
+  );
+
+  it.each([
+    { prompt: "Hello", maxTokens: 0 },
+    { prompt: "Hello", maxTokens: -1 },
+    { prompt: "Hello", temperature: -0.1 },
+    { prompt: "Hello", temperature: 1.1 }
+  ])("rejects invalid request: %o", async (request) => {
+    const provider = createMockProvider();
+    const client = createClient(provider);
+
+    await expect(client.generateText(request)).rejects.toMatchObject({
+      code: "INVALID_PROMPT"
+    });
+    expect(provider.generateText).not.toHaveBeenCalled();
   });
 
   describe("generateText", () => {
@@ -115,7 +137,7 @@ describe("AIClient", () => {
       const client = createClient(provider);
 
       const response = await client.generateText({
-        prompt: "Hello AI",
+        prompt: "Hello AI"
       });
 
       expect(response).toEqual({
@@ -124,14 +146,14 @@ describe("AIClient", () => {
         provider: "test",
         usage: {
           inputTokens: 10,
-          outputTokens: 20,
-        },
+          outputTokens: 20
+        }
       });
 
       expect(provider.generateText).toHaveBeenCalledTimes(1);
 
       expect(provider.generateText).toHaveBeenCalledWith({
-        prompt: "Hello AI",
+        prompt: "Hello AI"
       });
     });
 
@@ -142,10 +164,10 @@ describe("AIClient", () => {
 
       await expect(
         client.generateText({
-          prompt: "",
-        }),
+          prompt: ""
+        })
       ).rejects.toMatchObject({
-        code: "INVALID_PROMPT",
+        code: "INVALID_PROMPT"
       });
 
       expect(provider.generateText).not.toHaveBeenCalled();
@@ -158,10 +180,10 @@ describe("AIClient", () => {
 
       await expect(
         client.generateText({
-          prompt: "   ",
-        }),
+          prompt: "   "
+        })
       ).rejects.toMatchObject({
-        code: "INVALID_PROMPT",
+        code: "INVALID_PROMPT"
       });
 
       expect(provider.generateText).not.toHaveBeenCalled();
@@ -176,34 +198,29 @@ describe("AIClient", () => {
         prompt: "Analyze this portfolio",
         systemPrompt: "You are a financial analyst",
         maxTokens: 500,
-        temperature: 0.7,
+        temperature: 0.7
       };
 
       await client.generateText(request);
 
-      expect(provider.generateText).toHaveBeenCalledWith(
-        request,
-      );
+      expect(provider.generateText).toHaveBeenCalledWith(request);
     });
   });
 
   describe("errors", () => {
     it("preserves provider errors", async () => {
-      const providerError = new AIClientError(
-        "Provider failed",
-        "PROVIDER_ERROR",
-      );
+      const providerError = new AIClientError("Provider failed", "PROVIDER_ERROR");
 
       const provider: AIProviderClient = {
-        generateText: vi.fn().mockRejectedValue(providerError),
+        generateText: vi.fn().mockRejectedValue(providerError)
       };
 
       const client = createClient(provider);
 
       await expect(
         client.generateText({
-          prompt: "Hello",
-        }),
+          prompt: "Hello"
+        })
       ).rejects.toThrow(providerError);
     });
   });

@@ -97,12 +97,12 @@ underlying provider resources when finished.
 const client = new AIClient({
   provider: "bedrock",
   region: "us-east-1",
-  model: "amazon.nova-lite-v1:0",
+  model: "amazon.nova-lite-v1:0"
 });
 
 try {
   const response = await client.generateText({
-    prompt: "Hello",
+    prompt: "Hello"
   });
 
   console.log(response.text);

@@ -17,3 +17,8 @@ export type {
   TextDeltaEvent,
   TextStreamEvent
 } from "./types/stream.js";
+export type {
+  GenerateObjectRequest,
+  GenerateObjectResponse,
+  JSONSchema
+} from "./types/structured.js";

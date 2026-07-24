@@ -65,6 +65,7 @@
     "vitest": "^2.1.4"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3.29.0"
+    "@aws-sdk/client-bedrock-runtime": "^3.29.0",
+    "ajv": "^8.20.0"
   }
 }

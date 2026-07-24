@@ -341,6 +341,45 @@ for await (const event of stream) {
 Streaming requires the
 `bedrock:InvokeModelWithResponseStream` IAM permission.
 
+## Structured output
+
+Use `generateObject()` to parse and validate model
+output against a JSON Schema.
+
+```ts
+interface Analysis {
+  summary: string;
+  score: number;
+}
+
+const response = await client.generateObject<Analysis>({
+  prompt: "Analyze this TypeScript project.",
+  schema: {
+    type: "object",
+    properties: {
+      summary: {
+        type: "string"
+      },
+      score: {
+        type: "number"
+      }
+    },
+    required: ["summary", "score"],
+    additionalProperties: false
+  }
+});
+
+console.log(response.data.summary);
+console.log(response.data.score);
+```
+
+The generic type improves TypeScript usage, while the
+JSON Schema performs runtime validation.
+
+A generic type alone does not validate model output.
+
+````
+
 ## Current limitations
 
 The current release supports text generation through:
@@ -369,7 +408,7 @@ Clone the repository:
 git clone https://github.com/cruzerblade95/ai-client.git
 cd ai-client
 pnpm install
-```
+````
 
 Run validation:
 

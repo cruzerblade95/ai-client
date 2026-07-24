@@ -62,7 +62,7 @@
     "prettier": "^3.5.4",
     "tsup": "^8.3.3",
     "typescript": "^5.8.3",
-    "vitest": "^2.1.4"
+    "vitest": "^4.1.10"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.29.0"

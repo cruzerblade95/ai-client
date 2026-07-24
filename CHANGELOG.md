@@ -10,6 +10,8 @@ project follows Semantic Versioning.
 
 ### Added
 
+## [0.2.0] - 2026-07-24
+
 - Streaming text generation with async iterables
 - Typed text-delta, completion, and metadata events
 - Bedrock ConverseStream support
@@ -35,6 +37,9 @@ project follows Semantic Versioning.
 - Provider-neutral multimodal text and image input.
 - PNG, JPEG, GIF, and WebP image support.
 - Multimodal support for Bedrock, OpenAI, Anthropic, and custom providers.
+
+[Unreleased]: https://github.com/cruzerblade95/ai-client/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cruzerblade95/ai-client/releases/tag/v0.2.0
 
 ### Planned
 

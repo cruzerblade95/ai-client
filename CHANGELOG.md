@@ -26,6 +26,9 @@ project follows Semantic Versioning.
 - OpenAI streaming responses
 - OpenAI multi-turn conversation mapping
 - Structured OpenAI error classification
+- Anthropic provider using the Claude Messages API.
+- Anthropic text generation, conversations, and streaming.
+- Anthropic cancellation and normalized error handling.
 
 ### Planned
 

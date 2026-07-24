@@ -454,4 +454,15 @@ describe("AIClient", () => {
       })
     );
   });
+
+  it("creates an Anthropic client", () => {
+    expect(
+      () =>
+        new AIClient({
+          provider: "anthropic",
+          model: "claude-sonnet-5",
+          apiKey: "test-key"
+        })
+    ).not.toThrow();
+  });
 });

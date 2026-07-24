@@ -30,3 +30,9 @@ export type {
   GenerateConversationResponse
 } from "./types/conversation.js";
 export { OpenAIProvider, type OpenAIProviderOptions } from "./providers/openai.provider.js";
+export {
+  AnthropicProvider,
+  type AnthropicProviderOptions
+} from "./providers/anthropic.provider.js";
+
+export type { AnthropicClientOptions } from "./types/client.js";

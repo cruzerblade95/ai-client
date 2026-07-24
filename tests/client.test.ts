@@ -430,4 +430,28 @@ describe("AIClient", () => {
       expect(receivedSignal).toBeInstanceOf(AbortSignal);
     });
   });
+
+  it("accepts OpenAI configuration", () => {
+    expect(() => {
+      new AIClient({
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        apiKey: "test-key"
+      });
+    }).not.toThrow();
+  });
+
+  it("rejects an empty OpenAI API key", () => {
+    expect(() => {
+      new AIClient({
+        provider: "openai",
+        model: "gpt-5.6-sol",
+        apiKey: ""
+      });
+    }).toThrowError(
+      expect.objectContaining({
+        code: "INVALID_CONFIGURATION"
+      })
+    );
+  });
 });

@@ -21,6 +21,11 @@ project follows Semantic Versioning.
 - Multi-turn conversation generation
 - Typed user and assistant conversation messages
 - AWS Bedrock conversation-history mapping
+- OpenAI Responses API provider
+- OpenAI text generation
+- OpenAI streaming responses
+- OpenAI multi-turn conversation mapping
+- Structured OpenAI error classification
 
 ### Planned
 

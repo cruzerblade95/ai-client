@@ -30,6 +30,12 @@ A provider-agnostic, TypeScript-first AI SDK for building reliable AI-powered No
 - Access to a supported Bedrock model
 - AWS credentials with permission to invoke the model
 
+## Supported providers
+
+- AWS Bedrock
+- OpenAI Responses API
+- Custom provider implementations
+
 ## Installation
 
 Using pnpm:
@@ -412,6 +418,42 @@ console.log(response.text);
 Conversation messages support the `user` and `assistant`
 roles. Use `systemPrompt` for system-level instructions.
 
+## OpenAI provider
+
+The OpenAI provider uses the Responses API.
+
+```ts
+import {
+  AIClient,
+} from "@cruzerblade95/ai-client";
+
+const client = new AIClient({
+  provider: "openai",
+  model: "gpt-5.6-sol",
+});
+
+const response =
+  await client.generateText({
+    systemPrompt:
+      "You are a helpful coding assistant.",
+    prompt:
+      "Explain dependency injection.",
+  });
+
+console.log(response.text);
+```
+
+Set credentials using an environment variable:
+
+```bash
+OPENAI_API_KEY=your-api-key
+```
+
+Do not commit API keys to source control.
+
+Some reasoning models do not support every sampling option.
+Omit `temperature` when the selected model does not support it.
+
 
 ## Current limitations
 
@@ -425,7 +467,6 @@ The SDK does not yet provide dedicated APIs for:
 - Tool calling
 - Multimodal input
 - Provider-specific reasoning controls
-- OpenAI
 - Anthropic
 
 Some reasoning-capable models may work through Bedrock text generation, but the SDK does not yet expose dedicated reasoning settings or reasoning-content responses.

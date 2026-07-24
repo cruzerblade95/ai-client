@@ -29,6 +29,8 @@ import type {
   GenerateConversationResponse
 } from "./types/conversation.js";
 
+import { OpenAIProvider } from "./providers/openai.provider.js";
+
 const schemaValidator = new Ajv({
   allErrors: true,
   strict: false
@@ -322,7 +324,7 @@ export class AIClient {
       return;
     }
 
-    if (options.provider !== "bedrock") {
+    if (options.provider !== "bedrock" && options.provider !== "openai") {
       throw new AIClientError("Unsupported provider", "UNSUPPORTED_PROVIDER");
     }
 
@@ -330,8 +332,28 @@ export class AIClient {
       throw new AIClientError("Model must be provided", "INVALID_CONFIGURATION");
     }
 
-    if (options.region !== undefined && options.region.trim().length === 0) {
+    if (
+      options.provider === "bedrock" &&
+      options.region !== undefined &&
+      options.region.trim().length === 0
+    ) {
       throw new AIClientError("Region must not be empty", "INVALID_CONFIGURATION");
+    }
+
+    if (
+      options.provider === "openai" &&
+      options.apiKey !== undefined &&
+      options.apiKey.trim().length === 0
+    ) {
+      throw new AIClientError("OpenAI API key must not be empty", "INVALID_CONFIGURATION");
+    }
+
+    if (
+      options.provider === "openai" &&
+      options.baseURL !== undefined &&
+      options.baseURL.trim().length === 0
+    ) {
+      throw new AIClientError("OpenAI base URL must not be empty", "INVALID_CONFIGURATION");
     }
   }
 
@@ -340,7 +362,23 @@ export class AIClient {
       return options.provider;
     }
 
-    return this.createBedrockProvider(options);
+    switch (options.provider) {
+      case "bedrock":
+        return new BedrockProvider({
+          region: options.region,
+          model: options.model
+        });
+
+      case "openai":
+        return new OpenAIProvider({
+          model: options.model,
+          apiKey: options.apiKey,
+          baseURL: options.baseURL
+        });
+
+      default:
+        throw new AIClientError("Unsupported provider", "UNSUPPORTED_PROVIDER");
+    }
   }
 
   private createBedrockProvider(options: BedrockAIClientOptions): BedrockProvider {

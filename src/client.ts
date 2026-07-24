@@ -24,6 +24,11 @@ import type { GenerateObjectRequest, GenerateObjectResponse } from "./types/stru
 
 import { parseJSONResponse } from "./utils/json.js";
 
+import type {
+  GenerateConversationRequest,
+  GenerateConversationResponse
+} from "./types/conversation.js";
+
 const schemaValidator = new Ajv({
   allErrors: true,
   strict: false
@@ -127,6 +132,44 @@ export class AIClient {
     };
   }
 
+  public async generateConversation(
+    request: GenerateConversationRequest
+  ): Promise<GenerateConversationResponse> {
+    this.validateConversationRequest(request);
+
+    if (!this.provider.generateConversation) {
+      throw new AIClientError(
+        "The configured provider does not support conversations",
+        "UNSUPPORTED_OPERATION"
+      );
+    }
+
+    const maxRetries = this.options.maxRetries ?? 0;
+
+    const timeoutMs = this.options.timeout ?? 30_000;
+
+    return await withTimeout(
+      async (signal) => {
+        return await retryWithBackoff(
+          async () => {
+            return (await this.provider.generateConversation?.({
+              ...request,
+              signal
+            })) as GenerateConversationResponse;
+          },
+          {
+            maxRetries,
+            baseDelayMs: 1_000,
+            maxDelayMs: 30_000,
+            signal
+          }
+        );
+      },
+      timeoutMs,
+      request.signal
+    );
+  }
+
   public async *generateTextStream(request: GenerateTextRequest): AsyncIterable<TextStreamEvent> {
     this.validateRequest(request);
 
@@ -201,6 +244,36 @@ export class AIClient {
 
   public destroy(): void {
     this.provider.destroy?.();
+  }
+
+  private validateConversationRequest(request: GenerateConversationRequest): void {
+    if (!Array.isArray(request.messages) || request.messages.length === 0) {
+      throw new AIClientError("Conversation must contain at least one message", "INVALID_PROMPT");
+    }
+
+    for (const message of request.messages) {
+      if (message.role !== "user" && message.role !== "assistant") {
+        throw new AIClientError("Conversation message has an invalid role", "INVALID_PROMPT");
+      }
+
+      if (!message.content || message.content.trim().length === 0) {
+        throw new AIClientError("Conversation messages must not be empty", "INVALID_PROMPT");
+      }
+    }
+
+    if (
+      request.maxTokens !== undefined &&
+      (!Number.isInteger(request.maxTokens) || request.maxTokens <= 0)
+    ) {
+      throw new AIClientError("maxTokens must be a positive integer", "INVALID_PROMPT");
+    }
+
+    if (
+      request.temperature !== undefined &&
+      (!Number.isFinite(request.temperature) || request.temperature < 0 || request.temperature > 1)
+    ) {
+      throw new AIClientError("temperature must be between 0 and 1", "INVALID_PROMPT");
+    }
   }
 
   private validateRequest(request: GenerateTextRequest): void {

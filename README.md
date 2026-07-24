@@ -380,6 +380,39 @@ A generic type alone does not validate model output.
 
 ````
 
+## Multi-turn conversations
+
+```ts
+const response =
+  await client.generateConversation({
+    systemPrompt:
+      "You are a TypeScript instructor.",
+    messages: [
+      {
+        role: "user",
+        content:
+          "What is an interface?",
+      },
+      {
+        role: "assistant",
+        content:
+          "An interface describes an object shape.",
+      },
+      {
+        role: "user",
+        content:
+          "Show me a simple example.",
+      },
+    ],
+  });
+
+console.log(response.text);
+```
+
+Conversation messages support the `user` and `assistant`
+roles. Use `systemPrompt` for system-level instructions.
+
+
 ## Current limitations
 
 The current release supports text generation through:
@@ -389,9 +422,6 @@ The current release supports text generation through:
 
 The SDK does not yet provide dedicated APIs for:
 
-- Streaming
-- Structured JSON output
-- Multi-turn conversations
 - Tool calling
 - Multimodal input
 - Provider-specific reasoning controls

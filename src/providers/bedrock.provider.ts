@@ -20,6 +20,11 @@ import { mapBedrockError } from "./bedrock-error.js";
 
 import type { TextStreamEvent } from "../types/stream.js";
 
+import type {
+  GenerateConversationRequest,
+  GenerateConversationResponse
+} from "../types/conversation.js";
+
 export interface BedrockProviderOptions {
   region?: string;
   model: string;
@@ -44,33 +49,9 @@ export class BedrockProvider extends BaseProvider {
     try {
       const commandInput = this.createCommandInput(request);
 
-      if (request.systemPrompt?.trim()) {
-        commandInput.system = [
-          {
-            text: request.systemPrompt.trim()
-          }
-        ];
-      }
-
       const response = await this.runCommand(commandInput, request.signal);
 
-      const content = response.output?.message?.content;
-
-      const firstText = content?.find((item) => typeof item.text === "string")?.text?.trim();
-
-      if (!firstText) {
-        throw new AIClientError("Bedrock returned no text content", "INVALID_PROVIDER_RESPONSE");
-      }
-
-      return {
-        text: firstText,
-        model: this.model,
-        provider: "bedrock",
-        usage: {
-          inputTokens: response.usage?.inputTokens,
-          outputTokens: response.usage?.outputTokens
-        }
-      };
+      return this.mapConverseResponse(response);
     } catch (error) {
       throw mapBedrockError(error);
     }
@@ -94,23 +75,52 @@ export class BedrockProvider extends BaseProvider {
     });
   }
 
+  public async generateConversation(
+    request: GenerateConversationRequest
+  ): Promise<GenerateConversationResponse> {
+    try {
+      const commandInput = this.createConversationCommandInput(request);
+
+      const response = await this.runCommand(commandInput, request.signal);
+
+      return this.mapConverseResponse(response);
+    } catch (error) {
+      throw mapBedrockError(error);
+    }
+  }
+
   public destroy(): void {
     this.client.destroy();
   }
 
   private createCommandInput(request: GenerateTextRequest): ConverseCommandInput {
-    const commandInput: ConverseCommandInput = {
-      modelId: this.model,
+    return this.createConversationCommandInput({
       messages: [
         {
           role: "user",
-          content: [
-            {
-              text: request.prompt
-            }
-          ]
+          content: request.prompt
         }
       ],
+      systemPrompt: request.systemPrompt,
+      maxTokens: request.maxTokens,
+      temperature: request.temperature,
+      signal: request.signal
+    });
+  }
+
+  private createConversationCommandInput(
+    request: GenerateConversationRequest
+  ): ConverseCommandInput {
+    const commandInput: ConverseCommandInput = {
+      modelId: this.model,
+      messages: request.messages.map((message) => ({
+        role: message.role,
+        content: [
+          {
+            text: message.content
+          }
+        ]
+      })),
       inferenceConfig: {
         maxTokens: request.maxTokens,
         temperature: request.temperature
@@ -126,6 +136,26 @@ export class BedrockProvider extends BaseProvider {
     }
 
     return commandInput;
+  }
+
+  private mapConverseResponse(response: ConverseResponse): GenerateConversationResponse {
+    const content = response.output?.message?.content;
+
+    const firstText = content?.find((item) => typeof item.text === "string")?.text?.trim();
+
+    if (!firstText) {
+      throw new AIClientError("Bedrock returned no text content", "INVALID_PROVIDER_RESPONSE");
+    }
+
+    return {
+      text: firstText,
+      model: this.model,
+      provider: "bedrock",
+      usage: {
+        inputTokens: response.usage?.inputTokens,
+        outputTokens: response.usage?.outputTokens
+      }
+    };
   }
 
   public async *generateTextStream(request: GenerateTextRequest): AsyncIterable<TextStreamEvent> {

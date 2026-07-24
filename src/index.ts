@@ -43,3 +43,11 @@ export type {
   GenerateWithToolsRequest,
   GenerateWithToolsResponse
 } from "./types/tool.js";
+export type {
+  AIImageMediaType,
+  AITextContentPart,
+  AIImageContentPart,
+  AIContentPart,
+  GenerateMultimodalRequest,
+  GenerateMultimodalResponse
+} from "./types/multimodal.js";

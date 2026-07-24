@@ -129,4 +129,67 @@ describe("OpenAIProvider", () => {
       }
     );
   });
+
+  it("maps multimodal content to OpenAI", async () => {
+    const create = vi.fn().mockResolvedValue({
+      output_text: "A small image",
+      output: [],
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5,
+        total_tokens: 15
+      }
+    });
+
+    const client = {
+      responses: {
+        create
+      }
+    } as unknown as OpenAI;
+
+    const provider = new OpenAIProvider({
+      model: "test-openai-model",
+      client
+    });
+
+    const response = await provider.generateMultimodal({
+      content: [
+        {
+          type: "image",
+          mediaType: "image/png",
+          data: new Uint8Array([1, 2, 3])
+        },
+        {
+          type: "text",
+          text: "Describe this."
+        }
+      ]
+    });
+
+    expect(response.text).toBe("A small image");
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        input: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "input_image",
+                image_url: "data:image/png;base64,AQID",
+                detail: "auto"
+              },
+              {
+                type: "input_text",
+                text: "Describe this."
+              }
+            ]
+          }
+        ]
+      }),
+      {
+        signal: undefined
+      }
+    );
+  });
 });

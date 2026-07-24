@@ -270,4 +270,72 @@ describe("BedrockProvider", () => {
       provider.destroy();
     }).not.toThrow();
   });
+
+  it("maps multimodal content to Bedrock", async () => {
+    const provider = createBedrockProvider();
+
+    const runCommand = vi.spyOn(provider, "runCommand").mockResolvedValue({
+      output: {
+        message: {
+          role: "assistant",
+          content: [
+            {
+              text: "A small image"
+            }
+          ]
+        }
+      },
+      stopReason: "end_turn",
+      usage: {
+        inputTokens: 10,
+        outputTokens: 5,
+        totalTokens: 15
+      },
+      metrics: {
+        latencyMs: 50
+      }
+    });
+
+    const data = new Uint8Array([1, 2, 3]);
+
+    const response = await provider.generateMultimodal({
+      content: [
+        {
+          type: "image",
+          mediaType: "image/png",
+          data
+        },
+        {
+          type: "text",
+          text: "Describe this."
+        }
+      ]
+    });
+
+    expect(response.text).toBe("A small image");
+
+    expect(runCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                image: {
+                  format: "png",
+                  source: {
+                    bytes: data
+                  }
+                }
+              },
+              {
+                text: "Describe this."
+              }
+            ]
+          }
+        ]
+      }),
+      undefined
+    );
+  });
 });

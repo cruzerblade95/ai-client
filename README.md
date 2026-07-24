@@ -107,6 +107,37 @@ for (const toolCall of response.toolCalls) {
 
 The SDK returns tool calls but does not execute them automatically. Validate all tool arguments and enforce authorization before performing external actions.
 
+## Example Multimodal
+
+```ts
+import { readFile } from "node:fs/promises";
+import { AIClient } from "@cruzerblade95/ai-client";
+
+const client = new AIClient({
+  provider: "anthropic",
+  model: "claude-sonnet-5",
+  apiKey: process.env.ANTHROPIC_API_KEY
+});
+
+const image = new Uint8Array(await readFile("./diagram.png"));
+
+const response = await client.generateMultimodal({
+  content: [
+    {
+      type: "image",
+      mediaType: "image/png",
+      data: image
+    },
+    {
+      type: "text",
+      text: "Explain this diagram clearly."
+    }
+  ]
+});
+
+console.log(response.text);
+```
+
 ## System prompts
 
 Use `systemPrompt` to provide instructions that are separate from the user's prompt:

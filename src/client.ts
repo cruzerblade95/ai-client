@@ -23,6 +23,7 @@ import type { GenerateWithToolsRequest, GenerateWithToolsResponse } from "./type
 import { parseJSONResponse } from "./utils/json.js";
 import { retryWithBackoff } from "./utils/retry.js";
 import { withTimeout } from "./utils/timeout.js";
+import type { GenerateMultimodalRequest, GenerateMultimodalResponse } from "./types/multimodal.js";
 
 const schemaValidator = new Ajv({
   allErrors: true,
@@ -276,6 +277,44 @@ export class AIClient {
     );
   }
 
+  public async generateMultimodal(
+    request: GenerateMultimodalRequest
+  ): Promise<GenerateMultimodalResponse> {
+    this.validateMultimodalRequest(request);
+
+    if (!this.provider.generateMultimodal) {
+      throw new AIClientError(
+        "The selected provider does not support multimodal input",
+        "UNSUPPORTED_OPERATION"
+      );
+    }
+
+    const maxRetries = this.options.maxRetries ?? 0;
+
+    const timeoutMs = this.options.timeout ?? 30_000;
+
+    return await withTimeout(
+      async (signal) => {
+        return await retryWithBackoff(
+          async () => {
+            return await this.provider.generateMultimodal!({
+              ...request,
+              signal
+            });
+          },
+          {
+            maxRetries,
+            baseDelayMs: 1_000,
+            maxDelayMs: 30_000,
+            signal
+          }
+        );
+      },
+      timeoutMs,
+      request.signal
+    );
+  }
+
   public destroy(): void {
     this.provider.destroy?.();
   }
@@ -464,6 +503,66 @@ export class AIClient {
 
     if (typeof request.toolChoice === "object" && !names.has(request.toolChoice.name)) {
       throw new AIClientError(`Unknown tool choice: ${request.toolChoice.name}`, "INVALID_REQUEST");
+    }
+  }
+
+  private validateMultimodalRequest(request: GenerateMultimodalRequest): void {
+    if (!Array.isArray(request.content) || request.content.length === 0) {
+      throw new AIClientError("Multimodal content must not be empty", "INVALID_PROMPT");
+    }
+
+    let imageCount = 0;
+
+    for (const part of request.content) {
+      if (part.type === "text") {
+        if (!part.text || part.text.trim().length === 0) {
+          throw new AIClientError("Multimodal text must not be empty", "INVALID_PROMPT");
+        }
+
+        continue;
+      }
+
+      if (part.type === "image") {
+        imageCount += 1;
+
+        if (!(part.data instanceof Uint8Array) || part.data.byteLength === 0) {
+          throw new AIClientError("Multimodal image data must not be empty", "INVALID_REQUEST");
+        }
+
+        const supportedMediaTypes = ["image/png", "image/jpeg", "image/gif", "image/webp"];
+
+        if (!supportedMediaTypes.includes(part.mediaType)) {
+          throw new AIClientError(
+            `Unsupported image media type: ${part.mediaType}`,
+            "INVALID_REQUEST"
+          );
+        }
+
+        continue;
+      }
+
+      throw new AIClientError("Unsupported multimodal content type", "INVALID_REQUEST");
+    }
+
+    if (imageCount === 0) {
+      throw new AIClientError(
+        "Multimodal input must contain at least one image",
+        "INVALID_REQUEST"
+      );
+    }
+
+    if (
+      request.maxTokens !== undefined &&
+      (!Number.isInteger(request.maxTokens) || request.maxTokens <= 0)
+    ) {
+      throw new AIClientError("maxTokens must be a positive integer", "INVALID_PROMPT");
+    }
+
+    if (
+      request.temperature !== undefined &&
+      (!Number.isFinite(request.temperature) || request.temperature < 0 || request.temperature > 1)
+    ) {
+      throw new AIClientError("temperature must be between 0 and 1", "INVALID_PROMPT");
     }
   }
 }

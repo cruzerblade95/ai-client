@@ -130,4 +130,65 @@ describe("AnthropicProvider", () => {
       code: "INVALID_PROVIDER_RESPONSE"
     });
   });
+
+  it("maps a multi-turn conversation", async () => {
+    const create = vi.fn().mockResolvedValue(createMessage());
+
+    const client = {
+      messages: {
+        create
+      }
+    } as unknown as Anthropic;
+
+    const provider = new AnthropicProvider({
+      model: "claude-sonnet-5",
+      client
+    });
+
+    const result = await provider.generateConversation({
+      systemPrompt: "Be concise",
+      maxTokens: 500,
+      messages: [
+        {
+          role: "user",
+          content: "My name is Nabil."
+        },
+        {
+          role: "assistant",
+          content: "Hello Nabil."
+        },
+        {
+          role: "user",
+          content: "What is my name?"
+        }
+      ]
+    });
+
+    expect(result.text).toBe("Hello from Claude");
+
+    expect(create).toHaveBeenCalledWith(
+      {
+        model: "claude-sonnet-5",
+        max_tokens: 500,
+        system: "Be concise",
+        messages: [
+          {
+            role: "user",
+            content: "My name is Nabil."
+          },
+          {
+            role: "assistant",
+            content: "Hello Nabil."
+          },
+          {
+            role: "user",
+            content: "What is my name?"
+          }
+        ]
+      },
+      {
+        signal: undefined
+      }
+    );
+  });
 });

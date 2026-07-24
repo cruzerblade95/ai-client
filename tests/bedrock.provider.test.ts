@@ -2,16 +2,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { BedrockProvider } from "../src/providers/bedrock.provider.js";
 
+const createdProviders:
+  BedrockProvider[] = [];
+
+function createBedrockProvider():
+  BedrockProvider {
+  const provider =
+  createBedrockProvider();
+
+  createdProviders.push(provider);
+
+  return provider;
+}
+
 describe("BedrockProvider", () => {
   afterEach(() => {
+    for (const provider of createdProviders) {
+      provider.destroy();
+    }
+
+    createdProviders.length = 0;
+
     vi.restoreAllMocks();
   });
 
   it("maps a successful Bedrock response into the public response shape", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     vi.spyOn(provider, "runCommand").mockResolvedValue({
       output: {
@@ -51,10 +68,8 @@ describe("BedrockProvider", () => {
   });
 
   it("maps the system prompt into the Bedrock request", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     const runCommand = vi.spyOn(provider, "runCommand").mockResolvedValue({
       output: {
@@ -109,10 +124,8 @@ describe("BedrockProvider", () => {
   });
 
   it("does not add an empty system prompt", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     const runCommand = vi.spyOn(provider, "runCommand").mockResolvedValue({
       output: {
@@ -147,10 +160,8 @@ describe("BedrockProvider", () => {
   });
 
   it("rejects a Bedrock response without text", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     vi.spyOn(provider, "runCommand").mockResolvedValue({
       output: {
@@ -181,10 +192,8 @@ describe("BedrockProvider", () => {
   });
 
   it("rejects a whitespace-only Bedrock response", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     vi.spyOn(provider, "runCommand").mockResolvedValue({
       output: {
@@ -218,10 +227,8 @@ describe("BedrockProvider", () => {
   });
 
   it("wraps provider failures in AIClientError", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
+    const provider =
+  createBedrockProvider();
 
     const originalError = new Error("AWS request failed");
 
@@ -239,11 +246,8 @@ describe("BedrockProvider", () => {
   });
 
   it("maps Bedrock access-denied failures", async () => {
-    const provider = new BedrockProvider({
-      region: "us-east-1",
-      model: "amazon.nova-lite-v1:0"
-    });
-
+    const provider =
+  createBedrockProvider();
     const accessDeniedError = Object.assign(new Error("Access denied"), {
       name: "AccessDeniedException",
       $metadata: {
@@ -265,4 +269,16 @@ describe("BedrockProvider", () => {
       cause: accessDeniedError
     });
   });
+
+  it(
+    "destroys the AWS Bedrock client",
+    () => {
+      const provider =
+  createBedrockProvider();
+
+      expect(() => {
+        provider.destroy();
+      }).not.toThrow();
+    },
+  );
 });

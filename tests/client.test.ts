@@ -228,4 +228,44 @@ describe("AIClient", () => {
       ).rejects.toThrow(providerError);
     });
   });
+
+  describe("lifecycle", () => {
+    it(
+      "destroys the configured provider",
+      () => {
+        const destroy = vi.fn();
+
+        const provider: AIProviderClient = {
+          generateText: vi.fn(
+            async () => ({
+              text: "Result",
+              model: "test-model",
+              provider: "test",
+            }),
+          ),
+          destroy,
+        };
+
+        const client = createClient(provider);
+
+        client.destroy();
+
+        expect(destroy).toHaveBeenCalledOnce();
+      },
+    );
+
+    it(
+      "does not fail when the provider has no destroy method",
+      () => {
+        const provider =
+          createMockProvider();
+
+        const client = createClient(provider);
+
+        expect(() => {
+          client.destroy();
+        }).not.toThrow();
+      },
+    );
+  });
 });

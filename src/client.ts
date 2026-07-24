@@ -48,6 +48,10 @@ export class AIClient {
     );
   }
 
+  public destroy(): void {
+    this.provider.destroy?.();
+  }
+
   private validateRequest(request: GenerateTextRequest): void {
     if (!request.prompt || request.prompt.trim().length === 0) {
       throw new AIClientError("Prompt must not be empty", "INVALID_PROMPT");

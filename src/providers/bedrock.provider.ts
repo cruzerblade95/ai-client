@@ -95,4 +95,8 @@ export class BedrockProvider extends BaseProvider {
       abortSignal: signal
     });
   }
+
+  public destroy(): void {
+    this.client.destroy();
+  }
 }

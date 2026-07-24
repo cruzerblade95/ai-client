@@ -87,10 +87,34 @@ try {
 }
 ```
 
-## Development
+## Resource cleanup
 
-```bash
-pnpm install
+Long-running applications can reuse one `AIClient`
+instance. Short scripts and tests should release the
+underlying provider resources when finished.
+
+```ts
+const client = new AIClient({
+  provider: "bedrock",
+  region: "us-east-1",
+  model: "amazon.nova-lite-v1:0",
+});
+
+try {
+  const response = await client.generateText({
+    prompt: "Hello",
+  });
+
+  console.log(response.text);
+} finally {
+  client.destroy();
+}
+```
+
+## Step 8 — Run all checks
+
+```powershell
+pnpm format
 pnpm typecheck
 pnpm test
 pnpm build

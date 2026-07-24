@@ -253,7 +253,7 @@ The IAM identity requires permission similar to:
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["bedrock:InvokeModel"],
+      "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
       "Resource": "*"
     }
   ]
@@ -319,6 +319,27 @@ try {
   client.destroy();
 }
 ```
+
+## Streaming
+
+```ts
+const stream = client.generateTextStream({
+  prompt: "Explain TypeScript generics."
+});
+
+for await (const event of stream) {
+  if (event.type === "text-delta") {
+    process.stdout.write(event.text);
+  }
+
+  if (event.type === "metadata") {
+    console.log(event.usage);
+  }
+}
+```
+
+Streaming requires the
+`bedrock:InvokeModelWithResponseStream` IAM permission.
 
 ## Current limitations
 

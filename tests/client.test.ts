@@ -8,6 +8,8 @@ import type { GenerateTextRequest } from "../src/types/client.js";
 
 import type { GenerateTextResponse } from "../src/types/response.js";
 
+import type { TextStreamEvent } from "../src/types/stream.js";
+
 describe("AIClient", () => {
   const createMockProvider = (): AIProviderClient => ({
     generateText: vi.fn(async (request: GenerateTextRequest): Promise<GenerateTextResponse> => ({
@@ -323,6 +325,109 @@ describe("AIClient", () => {
       expect(() => {
         client.destroy();
       }).not.toThrow();
+    });
+  });
+
+  describe("streaming", () => {
+    it("streams events from a custom provider", async () => {
+      const provider: AIProviderClient = {
+        async generateText() {
+          return {
+            text: "Complete",
+            model: "custom-model",
+            provider: "custom"
+          };
+        },
+
+        async *generateTextStream() {
+          yield {
+            type: "text-delta",
+            text: "Hello "
+          };
+
+          yield {
+            type: "text-delta",
+            text: "world"
+          };
+        }
+      };
+
+      const client = new AIClient({
+        provider,
+        timeout: 30_000
+      });
+
+      const events: TextStreamEvent[] = [];
+
+      for await (const event of client.generateTextStream({
+        prompt: "Hello"
+      })) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([
+        {
+          type: "text-delta",
+          text: "Hello "
+        },
+        {
+          type: "text-delta",
+          text: "world"
+        }
+      ]);
+    });
+
+    it("rejects providers without streaming", async () => {
+      const provider = createMockProvider();
+
+      const client = createClient(provider);
+
+      const consumeStream = async () => {
+        for await (const _event of client.generateTextStream({
+          prompt: "Hello"
+        })) {
+          // Consume stream.
+        }
+      };
+
+      await expect(consumeStream()).rejects.toMatchObject({
+        code: "UNSUPPORTED_OPERATION"
+      });
+    });
+
+    it("passes an AbortSignal to the provider stream", async () => {
+      let receivedSignal: AbortSignal | undefined;
+
+      const provider: AIProviderClient = {
+        async generateText() {
+          return {
+            text: "Complete",
+            model: "custom-model",
+            provider: "custom"
+          };
+        },
+
+        async *generateTextStream(request) {
+          receivedSignal = request.signal;
+
+          yield {
+            type: "text-delta",
+            text: "Result"
+          };
+        }
+      };
+
+      const client = new AIClient({
+        provider
+      });
+
+      for await (const _event of client.generateTextStream({
+        prompt: "Hello"
+      })) {
+        // Consume stream.
+      }
+
+      expect(receivedSignal).toBeInstanceOf(AbortSignal);
     });
   });
 });

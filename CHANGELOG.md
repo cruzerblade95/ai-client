@@ -8,6 +8,13 @@ project follows Semantic Versioning.
 
 ## [Unreleased]
 
+### Added
+
+- Streaming text generation with async iterables
+- Typed text-delta, completion, and metadata events
+- Bedrock ConverseStream support
+- Streaming cancellation and timeout handling
+
 ### Planned
 
 - Streaming text generation

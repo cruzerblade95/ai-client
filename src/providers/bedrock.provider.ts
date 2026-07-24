@@ -6,7 +6,8 @@ import {
   type ConverseResponse,
   type ConverseStreamCommandInput,
   type ConverseStreamResponse,
-  type Tool
+  type Tool,
+  type ContentBlock
 } from "@aws-sdk/client-bedrock-runtime";
 
 import { AIClientError } from "../errors/ai-client.error.js";
@@ -25,10 +26,31 @@ import type {
 
 import { BaseProvider } from "./base.provider.js";
 import { mapBedrockError } from "./bedrock-error.js";
+import type {
+  AIImageMediaType,
+  GenerateMultimodalRequest,
+  GenerateMultimodalResponse
+} from "../types/multimodal.js";
 
 export interface BedrockProviderOptions {
   region?: string;
   model: string;
+}
+
+function mapBedrockImageFormat(mediaType: AIImageMediaType): "png" | "jpeg" | "gif" | "webp" {
+  switch (mediaType) {
+    case "image/png":
+      return "png";
+
+    case "image/jpeg":
+      return "jpeg";
+
+    case "image/gif":
+      return "gif";
+
+    case "image/webp":
+      return "webp";
+  }
 }
 
 export class BedrockProvider extends BaseProvider {
@@ -199,6 +221,57 @@ export class BedrockProvider extends BaseProvider {
           outputTokens: response.usage?.outputTokens
         }
       };
+    } catch (error) {
+      throw mapBedrockError(error);
+    }
+  }
+
+  public async generateMultimodal(
+    request: GenerateMultimodalRequest
+  ): Promise<GenerateMultimodalResponse> {
+    try {
+      const content: ContentBlock[] = request.content.map((part): ContentBlock => {
+        if (part.type === "text") {
+          return {
+            text: part.text
+          };
+        }
+
+        return {
+          image: {
+            format: mapBedrockImageFormat(part.mediaType),
+            source: {
+              bytes: part.data
+            }
+          }
+        };
+      });
+
+      const commandInput: ConverseCommandInput = {
+        modelId: this.model,
+        messages: [
+          {
+            role: "user",
+            content
+          }
+        ],
+        inferenceConfig: {
+          maxTokens: request.maxTokens,
+          temperature: request.temperature
+        }
+      };
+
+      if (request.systemPrompt?.trim()) {
+        commandInput.system = [
+          {
+            text: request.systemPrompt.trim()
+          }
+        ];
+      }
+
+      const response = await this.runCommand(commandInput, request.signal);
+
+      return this.mapConverseResponse(response);
     } catch (error) {
       throw mapBedrockError(error);
     }

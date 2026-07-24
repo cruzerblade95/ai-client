@@ -191,4 +191,82 @@ describe("AnthropicProvider", () => {
       }
     );
   });
+
+  it("maps multimodal content to Anthropic", async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: "message-1",
+      type: "message",
+      role: "assistant",
+      model: "test-anthropic-model",
+      content: [
+        {
+          type: "text",
+          text: "A small image",
+          citations: null
+        }
+      ],
+      stop_reason: "end_turn",
+      stop_sequence: null,
+      stop_details: null,
+      container: null,
+      usage: {
+        input_tokens: 10,
+        output_tokens: 5
+      }
+    });
+
+    const client = {
+      messages: {
+        create
+      }
+    } as unknown as Anthropic;
+
+    const provider = new AnthropicProvider({
+      model: "test-anthropic-model",
+      client
+    });
+
+    const response = await provider.generateMultimodal({
+      content: [
+        {
+          type: "image",
+          mediaType: "image/png",
+          data: new Uint8Array([1, 2, 3])
+        },
+        {
+          type: "text",
+          text: "Describe this."
+        }
+      ]
+    });
+
+    expect(response.text).toBe("A small image");
+
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                type: "image",
+                source: {
+                  type: "base64",
+                  media_type: "image/png",
+                  data: "AQID"
+                }
+              },
+              {
+                type: "text",
+                text: "Describe this."
+              }
+            ]
+          }
+        ]
+      }),
+      {
+        signal: undefined
+      }
+    );
+  });
 });

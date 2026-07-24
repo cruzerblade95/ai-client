@@ -32,6 +32,9 @@ project follows Semantic Versioning.
 - Provider-neutral tool definitions and tool-call responses.
 - Tool calling for Bedrock, OpenAI, Anthropic, and custom providers.
 - Tool validation and unsupported-operation handling.
+- Provider-neutral multimodal text and image input.
+- PNG, JPEG, GIF, and WebP image support.
+- Multimodal support for Bedrock, OpenAI, Anthropic, and custom providers.
 
 ### Planned
 

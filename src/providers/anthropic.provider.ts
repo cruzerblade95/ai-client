@@ -11,6 +11,9 @@ import type {
   GenerateWithToolsRequest,
   GenerateWithToolsResponse
 } from "../types/tool.js";
+import type { GenerateMultimodalRequest, GenerateMultimodalResponse } from "../types/multimodal.js";
+
+import { bytesToBase64 } from "../utils/base64.js";
 
 export interface AnthropicProviderOptions {
   model: string;
@@ -254,6 +257,71 @@ export class AnthropicProvider extends BaseProvider {
         model: response.model,
         provider: "anthropic",
         toolCalls,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens
+        }
+      };
+    } catch (error) {
+      throw mapAnthropicError(error);
+    }
+  }
+
+  public async generateMultimodal(
+    request: GenerateMultimodalRequest
+  ): Promise<GenerateMultimodalResponse> {
+    try {
+      const response = await this.client.messages.create(
+        {
+          model: this.model,
+          max_tokens: request.maxTokens ?? this.defaultMaxTokens,
+          messages: [
+            {
+              role: "user",
+              content: request.content.map((part) => {
+                if (part.type === "text") {
+                  return {
+                    type: "text" as const,
+                    text: part.text
+                  };
+                }
+
+                return {
+                  type: "image" as const,
+                  source: {
+                    type: "base64" as const,
+                    media_type: part.mediaType,
+                    data: bytesToBase64(part.data)
+                  }
+                };
+              })
+            }
+          ],
+          ...(request.systemPrompt
+            ? {
+                system: request.systemPrompt
+              }
+            : {})
+        },
+        {
+          signal: request.signal
+        }
+      );
+
+      const text = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("")
+        .trim();
+
+      if (!text) {
+        throw new AIClientError("Anthropic returned no text content", "INVALID_PROVIDER_RESPONSE");
+      }
+
+      return {
+        text,
+        model: response.model,
+        provider: "anthropic",
         usage: {
           inputTokens: response.usage.input_tokens,
           outputTokens: response.usage.output_tokens

@@ -24,6 +24,10 @@ import type {
   GenerateWithToolsResponse
 } from "../types/tool.js";
 
+import type { GenerateMultimodalRequest, GenerateMultimodalResponse } from "../types/multimodal.js";
+
+import { imageToDataURL } from "../utils/base64.js";
+
 export interface OpenAIProviderOptions {
   model: string;
   apiKey?: string;
@@ -236,6 +240,68 @@ export class OpenAIProvider extends BaseProvider {
         model: this.model,
         provider: "openai",
         toolCalls,
+        usage: {
+          inputTokens: response.usage?.input_tokens,
+          outputTokens: response.usage?.output_tokens
+        }
+      };
+    } catch (error) {
+      throw mapOpenAIError(error);
+    }
+  }
+
+  public async generateMultimodal(
+    request: GenerateMultimodalRequest
+  ): Promise<GenerateMultimodalResponse> {
+    try {
+      const response = await this.client.responses.create(
+        {
+          model: this.model,
+          input: [
+            {
+              role: "user",
+              content: request.content.map((part) => {
+                if (part.type === "text") {
+                  return {
+                    type: "input_text" as const,
+                    text: part.text
+                  };
+                }
+
+                return {
+                  type: "input_image" as const,
+                  image_url: imageToDataURL(part),
+                  detail: "auto" as const
+                };
+              })
+            }
+          ],
+          ...(request.systemPrompt
+            ? {
+                instructions: request.systemPrompt
+              }
+            : {}),
+          ...(request.maxTokens !== undefined
+            ? {
+                max_output_tokens: request.maxTokens
+              }
+            : {})
+        },
+        {
+          signal: request.signal
+        }
+      );
+
+      const text = response.output_text?.trim() ?? "";
+
+      if (!text) {
+        throw new AIClientError("OpenAI returned no text content", "INVALID_PROVIDER_RESPONSE");
+      }
+
+      return {
+        text,
+        model: this.model,
+        provider: "openai",
         usage: {
           inputTokens: response.usage?.input_tokens,
           outputTokens: response.usage?.output_tokens

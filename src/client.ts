@@ -30,6 +30,7 @@ import type {
 } from "./types/conversation.js";
 
 import { OpenAIProvider } from "./providers/openai.provider.js";
+import { AnthropicProvider } from "./providers/anthropic.provider.js";
 
 const schemaValidator = new Ajv({
   allErrors: true,
@@ -324,7 +325,11 @@ export class AIClient {
       return;
     }
 
-    if (options.provider !== "bedrock" && options.provider !== "openai") {
+    if (
+      options.provider !== "bedrock" &&
+      options.provider !== "openai" &&
+      options.provider !== "anthropic"
+    ) {
       throw new AIClientError("Unsupported provider", "UNSUPPORTED_PROVIDER");
     }
 
@@ -371,6 +376,13 @@ export class AIClient {
 
       case "openai":
         return new OpenAIProvider({
+          model: options.model,
+          apiKey: options.apiKey,
+          baseURL: options.baseURL
+        });
+
+      case "anthropic":
+        return new AnthropicProvider({
           model: options.model,
           apiKey: options.apiKey,
           baseURL: options.baseURL

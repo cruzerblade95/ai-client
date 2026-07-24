@@ -1,6 +1,6 @@
 import type { AIProviderClient } from "./provider.js";
 
-export type AIProvider = "bedrock" | "openai";
+export type AIProvider = "bedrock" | "openai" | "anthropic";
 
 export interface CommonAIClientOptions {
   maxRetries?: number;
@@ -20,11 +20,19 @@ export interface OpenAIClientOptions extends CommonAIClientOptions {
   baseURL?: string;
 }
 
+export interface AnthropicClientOptions extends CommonAIClientOptions {
+  provider: "anthropic";
+  model: string;
+  apiKey?: string;
+  baseURL?: string;
+}
+
 export interface CustomAIClientOptions extends CommonAIClientOptions {
   provider: AIProviderClient;
 }
 
-export type AIClientOptions = BedrockAIClientOptions | OpenAIClientOptions | CustomAIClientOptions;
+export type AIClientOptions =
+  BedrockAIClientOptions | OpenAIClientOptions | AnthropicClientOptions | CustomAIClientOptions;
 
 export interface GenerateTextRequest {
   prompt: string;

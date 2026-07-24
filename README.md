@@ -62,20 +62,17 @@ yarn add @cruzerblade95/ai-client
 import { AIClient } from "@cruzerblade95/ai-client";
 
 const client = new AIClient({
-  provider: "bedrock",
-  region: "us-east-1",
-  model: "amazon.nova-lite-v1:0"
+  provider: "anthropic",
+  model: "claude-sonnet-5",
+  apiKey: process.env.ANTHROPIC_API_KEY
 });
 
-try {
-  const response = await client.generateText({
-    prompt: "Explain dependency injection in simple terms."
-  });
+const response = await client.generateText({
+  prompt: "Explain dependency injection simply.",
+  systemPrompt: "You are a concise TypeScript teacher."
+});
 
-  console.log(response.text);
-} finally {
-  client.destroy();
-}
+console.log(response.text);
 ```
 
 ## System prompts

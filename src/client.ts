@@ -38,6 +38,7 @@ export class AIClient {
           {
             maxRetries,
             baseDelayMs: 1_000,
+            maxDelayMs: 30_000,
             signal
           }
         );

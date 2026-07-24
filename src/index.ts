@@ -5,7 +5,8 @@ export type {
   BedrockAIClientOptions,
   CommonAIClientOptions,
   CustomAIClientOptions,
-  GenerateTextRequest
+  GenerateTextRequest,
+  OpenAIClientOptions
 } from "./types/client.js";
 export type { AIProviderClient } from "./types/provider.js";
 export type { GenerateTextResponse } from "./types/response.js";
@@ -28,3 +29,4 @@ export type {
   GenerateConversationRequest,
   GenerateConversationResponse
 } from "./types/conversation.js";
+export { OpenAIProvider, type OpenAIProviderOptions } from "./providers/openai.provider.js";

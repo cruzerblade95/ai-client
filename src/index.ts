@@ -22,3 +22,9 @@ export type {
   GenerateObjectResponse,
   JSONSchema
 } from "./types/structured.js";
+export type {
+  ConversationMessage,
+  ConversationRole,
+  GenerateConversationRequest,
+  GenerateConversationResponse
+} from "./types/conversation.js";

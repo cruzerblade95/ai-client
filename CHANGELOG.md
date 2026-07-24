@@ -18,6 +18,9 @@ project follows Semantic Versioning.
 - Runtime JSON Schema validation using Ajv
 - Typed structured-output responses
 - Markdown JSON-fence handling
+- Multi-turn conversation generation
+- Typed user and assistant conversation messages
+- AWS Bedrock conversation-history mapping
 
 ### Planned
 

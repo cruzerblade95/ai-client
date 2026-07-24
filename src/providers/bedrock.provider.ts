@@ -4,9 +4,13 @@ import {
   type ConverseCommandInput,
   type ConverseResponse
 } from "@aws-sdk/client-bedrock-runtime";
+
 import { AIClientError } from "../errors/ai-client.error.js";
+
 import type { GenerateTextRequest } from "../types/client.js";
+
 import type { GenerateTextResponse } from "../types/response.js";
+
 import { BaseProvider } from "./base.provider.js";
 
 export interface BedrockProviderOptions {
@@ -16,11 +20,16 @@ export interface BedrockProviderOptions {
 
 export class BedrockProvider extends BaseProvider {
   private readonly client: BedrockRuntimeClient;
+
   private readonly model: string;
 
   public constructor(options: BedrockProviderOptions) {
     super();
-    this.client = new BedrockRuntimeClient({ region: options.region });
+
+    this.client = new BedrockRuntimeClient({
+      region: options.region
+    });
+
     this.model = options.model;
   }
 
@@ -31,7 +40,11 @@ export class BedrockProvider extends BaseProvider {
         messages: [
           {
             role: "user",
-            content: [{ text: request.prompt }]
+            content: [
+              {
+                text: request.prompt
+              }
+            ]
           }
         ],
         inferenceConfig: {
@@ -40,9 +53,23 @@ export class BedrockProvider extends BaseProvider {
         }
       };
 
+      if (request.systemPrompt?.trim()) {
+        commandInput.system = [
+          {
+            text: request.systemPrompt.trim()
+          }
+        ];
+      }
+
       const response = await this.runCommand(commandInput);
+
       const content = response.output?.message?.content;
-      const firstText = content?.find((item) => typeof item.text === "string")?.text ?? "";
+
+      const firstText = content?.find((item) => typeof item.text === "string")?.text?.trim();
+
+      if (!firstText) {
+        throw new AIClientError("Bedrock returned no text content", "INVALID_PROVIDER_RESPONSE");
+      }
 
       return {
         text: firstText,
@@ -54,7 +81,13 @@ export class BedrockProvider extends BaseProvider {
         }
       };
     } catch (error) {
-      throw new AIClientError("Bedrock request failed", "PROVIDER_ERROR", { cause: error });
+      if (error instanceof AIClientError) {
+        throw error;
+      }
+
+      throw new AIClientError("Bedrock request failed", "PROVIDER_ERROR", {
+        cause: error
+      });
     }
   }
 

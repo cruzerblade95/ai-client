@@ -17,6 +17,13 @@ import { mapOpenAIError } from "./openai-error.js";
 
 import { BaseProvider } from "./base.provider.js";
 
+import type {
+  AIToolCall,
+  AIToolChoice,
+  GenerateWithToolsRequest,
+  GenerateWithToolsResponse
+} from "../types/tool.js";
+
 export interface OpenAIProviderOptions {
   model: string;
   apiKey?: string;
@@ -182,5 +189,85 @@ export class OpenAIProvider extends BaseProvider {
     } catch (error) {
       throw mapOpenAIError(error);
     }
+  }
+
+  public async generateWithTools(
+    request: GenerateWithToolsRequest
+  ): Promise<GenerateWithToolsResponse> {
+    try {
+      const response = await this.client.responses.create(
+        {
+          model: this.model,
+          input: request.prompt,
+          tools: request.tools.map((tool) => ({
+            type: "function" as const,
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.inputSchema,
+            strict: tool.strict ?? false
+          })),
+          tool_choice: mapOpenAIToolChoice(request.toolChoice),
+          ...(request.systemPrompt
+            ? {
+                instructions: request.systemPrompt
+              }
+            : {}),
+          ...(request.maxTokens !== undefined
+            ? {
+                max_output_tokens: request.maxTokens
+              }
+            : {})
+        },
+        {
+          signal: request.signal
+        }
+      );
+
+      const toolCalls: AIToolCall[] = response.output
+        .filter((item) => item.type === "function_call")
+        .map((item) => ({
+          id: item.call_id,
+          name: item.name,
+          arguments: parseToolArguments(item.arguments)
+        }));
+
+      return {
+        text: response.output_text ?? "",
+        model: this.model,
+        provider: "openai",
+        toolCalls,
+        usage: {
+          inputTokens: response.usage?.input_tokens,
+          outputTokens: response.usage?.output_tokens
+        }
+      };
+    } catch (error) {
+      throw mapOpenAIError(error);
+    }
+  }
+}
+
+function mapOpenAIToolChoice(choice: AIToolChoice | undefined) {
+  if (!choice) {
+    return "auto" as const;
+  }
+
+  if (typeof choice === "string") {
+    return choice;
+  }
+
+  return {
+    type: "function" as const,
+    name: choice.name
+  };
+}
+
+function parseToolArguments(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    throw new AIClientError("OpenAI returned invalid tool arguments", "INVALID_PROVIDER_RESPONSE", {
+      cause: error
+    });
   }
 }

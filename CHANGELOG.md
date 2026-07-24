@@ -29,6 +29,9 @@ project follows Semantic Versioning.
 - Anthropic provider using the Claude Messages API.
 - Anthropic text generation, conversations, and streaming.
 - Anthropic cancellation and normalized error handling.
+- Provider-neutral tool definitions and tool-call responses.
+- Tool calling for Bedrock, OpenAI, Anthropic, and custom providers.
+- Tool validation and unsupported-operation handling.
 
 ### Planned
 

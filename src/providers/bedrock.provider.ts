@@ -5,25 +5,26 @@ import {
   type ConverseCommandInput,
   type ConverseResponse,
   type ConverseStreamCommandInput,
-  type ConverseStreamResponse
+  type ConverseStreamResponse,
+  type Tool
 } from "@aws-sdk/client-bedrock-runtime";
 
 import { AIClientError } from "../errors/ai-client.error.js";
-
 import type { GenerateTextRequest } from "../types/client.js";
-
-import type { GenerateTextResponse } from "../types/response.js";
-
-import { BaseProvider } from "./base.provider.js";
-
-import { mapBedrockError } from "./bedrock-error.js";
-
-import type { TextStreamEvent } from "../types/stream.js";
-
 import type {
   GenerateConversationRequest,
   GenerateConversationResponse
 } from "../types/conversation.js";
+import type { GenerateTextResponse } from "../types/response.js";
+import type { TextStreamEvent } from "../types/stream.js";
+import type {
+  AIToolCall,
+  GenerateWithToolsRequest,
+  GenerateWithToolsResponse
+} from "../types/tool.js";
+
+import { BaseProvider } from "./base.provider.js";
+import { mapBedrockError } from "./bedrock-error.js";
 
 export interface BedrockProviderOptions {
   region?: string;
@@ -84,6 +85,120 @@ export class BedrockProvider extends BaseProvider {
       const response = await this.runCommand(commandInput, request.signal);
 
       return this.mapConverseResponse(response);
+    } catch (error) {
+      throw mapBedrockError(error);
+    }
+  }
+
+  public async generateWithTools(
+    request: GenerateWithToolsRequest
+  ): Promise<GenerateWithToolsResponse> {
+    try {
+      const tools: Tool[] = request.tools.map((tool): Tool => ({
+        toolSpec: {
+          name: tool.name,
+          inputSchema: {
+            json: tool.inputSchema
+          },
+          ...(tool.description
+            ? {
+                description: tool.description
+              }
+            : {})
+        }
+      }));
+
+      const commandInput: ConverseCommandInput = {
+        modelId: this.model,
+        messages: [
+          {
+            role: "user",
+            content: [
+              {
+                text: request.prompt
+              }
+            ]
+          }
+        ],
+        ...(request.toolChoice !== "none"
+          ? {
+              toolConfig: {
+                tools,
+                ...(request.toolChoice === "required"
+                  ? {
+                      toolChoice: {
+                        any: {}
+                      }
+                    }
+                  : {}),
+                ...(typeof request.toolChoice === "object"
+                  ? {
+                      toolChoice: {
+                        tool: {
+                          name: request.toolChoice.name
+                        }
+                      }
+                    }
+                  : {})
+              }
+            }
+          : {}),
+        ...(request.systemPrompt
+          ? {
+              system: [
+                {
+                  text: request.systemPrompt
+                }
+              ]
+            }
+          : {}),
+        inferenceConfig: {
+          maxTokens: request.maxTokens,
+          temperature: request.temperature
+        }
+      };
+
+      const response = await this.runCommand(commandInput, request.signal);
+
+      const content = response.output?.message?.content ?? [];
+
+      const text = content
+        .filter((block) => typeof block.text === "string")
+        .map((block) => block.text)
+        .join("")
+        .trim();
+
+      const toolCalls: AIToolCall[] = content.flatMap((block) => {
+        if (!block.toolUse) {
+          return [];
+        }
+
+        return [
+          {
+            id: block.toolUse.toolUseId ?? "",
+            name: block.toolUse.name ?? "",
+            arguments: block.toolUse.input
+          }
+        ];
+      });
+
+      if (!text && toolCalls.length === 0) {
+        throw new AIClientError(
+          "Bedrock returned neither text nor tool calls",
+          "INVALID_PROVIDER_RESPONSE"
+        );
+      }
+
+      return {
+        text,
+        model: this.model,
+        provider: "bedrock",
+        toolCalls,
+        usage: {
+          inputTokens: response.usage?.inputTokens,
+          outputTokens: response.usage?.outputTokens
+        }
+      };
     } catch (error) {
       throw mapBedrockError(error);
     }

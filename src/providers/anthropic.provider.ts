@@ -6,6 +6,11 @@ import type { GenerateTextResponse } from "../types/response.js";
 import { BaseProvider } from "./base.provider.js";
 import { mapAnthropicError } from "./anthropic-error.js";
 import type { TextStreamEvent } from "../types/stream.js";
+import type {
+  AIToolCall,
+  GenerateWithToolsRequest,
+  GenerateWithToolsResponse
+} from "../types/tool.js";
 
 export interface AnthropicProviderOptions {
   model: string;
@@ -166,6 +171,94 @@ export class AnthropicProvider extends BaseProvider {
           };
         }
       }
+    } catch (error) {
+      throw mapAnthropicError(error);
+    }
+  }
+
+  public async generateWithTools(
+    request: GenerateWithToolsRequest
+  ): Promise<GenerateWithToolsResponse> {
+    try {
+      const response = await this.client.messages.create(
+        {
+          model: this.model,
+          max_tokens: request.maxTokens ?? this.defaultMaxTokens,
+          messages: [
+            {
+              role: "user",
+              content: request.prompt
+            }
+          ],
+          tools: request.tools.map((tool) => ({
+            name: tool.name,
+            description: tool.description,
+            input_schema: tool.inputSchema as Anthropic.Tool.InputSchema
+          })),
+          ...(request.systemPrompt
+            ? {
+                system: request.systemPrompt
+              }
+            : {}),
+          ...(request.toolChoice === "required"
+            ? {
+                tool_choice: {
+                  type: "any" as const
+                }
+              }
+            : {}),
+          ...(request.toolChoice === "none"
+            ? {
+                tool_choice: {
+                  type: "none" as const
+                }
+              }
+            : {}),
+          ...(typeof request.toolChoice === "object"
+            ? {
+                tool_choice: {
+                  type: "tool" as const,
+                  name: request.toolChoice.name
+                }
+              }
+            : {})
+        },
+        {
+          signal: request.signal
+        }
+      );
+
+      const text = response.content
+        .filter((block): block is Anthropic.TextBlock => block.type === "text")
+        .map((block) => block.text)
+        .join("")
+        .trim();
+
+      const toolCalls: AIToolCall[] = response.content
+        .filter((block): block is Anthropic.ToolUseBlock => block.type === "tool_use")
+        .map((block) => ({
+          id: block.id,
+          name: block.name,
+          arguments: block.input
+        }));
+
+      if (!text && toolCalls.length === 0) {
+        throw new AIClientError(
+          "Anthropic returned neither text nor tool calls",
+          "INVALID_PROVIDER_RESPONSE"
+        );
+      }
+
+      return {
+        text,
+        model: response.model,
+        provider: "anthropic",
+        toolCalls,
+        usage: {
+          inputTokens: response.usage.input_tokens,
+          outputTokens: response.usage.output_tokens
+        }
+      };
     } catch (error) {
       throw mapAnthropicError(error);
     }

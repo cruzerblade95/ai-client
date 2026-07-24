@@ -36,3 +36,10 @@ export {
 } from "./providers/anthropic.provider.js";
 
 export type { AnthropicClientOptions } from "./types/client.js";
+export type {
+  AIToolDefinition,
+  AIToolChoice,
+  AIToolCall,
+  GenerateWithToolsRequest,
+  GenerateWithToolsResponse
+} from "./types/tool.js";

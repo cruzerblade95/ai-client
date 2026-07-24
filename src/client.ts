@@ -1,36 +1,28 @@
-import { AIClientError } from "./errors/ai-client.error.js";
+import { Ajv, type AnySchema } from "ajv";
 
+import { AIClientError } from "./errors/ai-client.error.js";
+import { AnthropicProvider } from "./providers/anthropic.provider.js";
 import { BedrockProvider } from "./providers/bedrock.provider.js";
+import { OpenAIProvider } from "./providers/openai.provider.js";
 
 import type {
   AIClientOptions,
   BedrockAIClientOptions,
   GenerateTextRequest
 } from "./types/client.js";
-
-import type { AIProviderClient } from "./types/provider.js";
-
-import type { GenerateTextResponse } from "./types/response.js";
-
-import { retryWithBackoff } from "./utils/retry.js";
-
-import { withTimeout } from "./utils/timeout.js";
-
-import type { TextStreamEvent } from "./types/stream.js";
-
-import { Ajv, type AnySchema, type ValidateFunction } from "ajv";
-
-import type { GenerateObjectRequest, GenerateObjectResponse } from "./types/structured.js";
-
-import { parseJSONResponse } from "./utils/json.js";
-
 import type {
   GenerateConversationRequest,
   GenerateConversationResponse
 } from "./types/conversation.js";
+import type { AIProviderClient } from "./types/provider.js";
+import type { GenerateTextResponse } from "./types/response.js";
+import type { TextStreamEvent } from "./types/stream.js";
+import type { GenerateObjectRequest, GenerateObjectResponse } from "./types/structured.js";
+import type { GenerateWithToolsRequest, GenerateWithToolsResponse } from "./types/tool.js";
 
-import { OpenAIProvider } from "./providers/openai.provider.js";
-import { AnthropicProvider } from "./providers/anthropic.provider.js";
+import { parseJSONResponse } from "./utils/json.js";
+import { retryWithBackoff } from "./utils/retry.js";
+import { withTimeout } from "./utils/timeout.js";
 
 const schemaValidator = new Ajv({
   allErrors: true,
@@ -245,6 +237,45 @@ export class AIClient {
     }
   }
 
+  public async generateWithTools(
+    request: GenerateWithToolsRequest
+  ): Promise<GenerateWithToolsResponse> {
+    this.validateRequest(request);
+    this.validateTools(request);
+
+    if (!this.provider.generateWithTools) {
+      throw new AIClientError(
+        "The selected provider does not support tool calling",
+        "UNSUPPORTED_OPERATION"
+      );
+    }
+
+    const maxRetries = this.options.maxRetries ?? 0;
+
+    const timeoutMs = this.options.timeout ?? 30_000;
+
+    return await withTimeout(
+      async (signal) => {
+        return await retryWithBackoff(
+          async () => {
+            return await this.provider.generateWithTools!({
+              ...request,
+              signal
+            });
+          },
+          {
+            maxRetries,
+            baseDelayMs: 1_000,
+            maxDelayMs: 30_000,
+            signal
+          }
+        );
+      },
+      timeoutMs,
+      request.signal
+    );
+  }
+
   public destroy(): void {
     this.provider.destroy?.();
   }
@@ -398,5 +429,41 @@ export class AIClient {
       region: options.region,
       model: options.model
     });
+  }
+
+  private validateTools(request: GenerateWithToolsRequest): void {
+    if (!Array.isArray(request.tools) || request.tools.length === 0) {
+      throw new AIClientError("At least one tool must be provided", "INVALID_REQUEST");
+    }
+
+    const names = new Set<string>();
+
+    for (const tool of request.tools) {
+      if (!tool.name || tool.name.trim().length === 0) {
+        throw new AIClientError("Tool name must not be empty", "INVALID_REQUEST");
+      }
+
+      if (!/^[a-zA-Z0-9_-]+$/.test(tool.name)) {
+        throw new AIClientError(`Invalid tool name: ${tool.name}`, "INVALID_REQUEST");
+      }
+
+      if (names.has(tool.name)) {
+        throw new AIClientError(`Duplicate tool name: ${tool.name}`, "INVALID_REQUEST");
+      }
+
+      names.add(tool.name);
+
+      if (
+        !tool.inputSchema ||
+        typeof tool.inputSchema !== "object" ||
+        Array.isArray(tool.inputSchema)
+      ) {
+        throw new AIClientError(`Invalid input schema for tool: ${tool.name}`, "INVALID_REQUEST");
+      }
+    }
+
+    if (typeof request.toolChoice === "object" && !names.has(request.toolChoice.name)) {
+      throw new AIClientError(`Unknown tool choice: ${request.toolChoice.name}`, "INVALID_REQUEST");
+    }
   }
 }

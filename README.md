@@ -75,6 +75,38 @@ const response = await client.generateText({
 console.log(response.text);
 ```
 
+## Example Weather Tools
+
+```ts
+const weatherTool = {
+  name: "get_weather",
+  description: "Get the current weather for a city",
+  inputSchema: {
+    type: "object",
+    properties: {
+      city: {
+        type: "string"
+      }
+    },
+    required: ["city"],
+    additionalProperties: false
+  }
+};
+
+const response = await client.generateWithTools({
+  prompt: "What is the weather in Kuala Lumpur?",
+  tools: [weatherTool]
+});
+
+for (const toolCall of response.toolCalls) {
+  if (toolCall.name === "get_weather") {
+    console.log(toolCall.arguments);
+  }
+}
+```
+
+The SDK returns tool calls but does not execute them automatically. Validate all tool arguments and enforce authorization before performing external actions.
+
 ## System prompts
 
 Use `systemPrompt` to provide instructions that are separate from the user's prompt:

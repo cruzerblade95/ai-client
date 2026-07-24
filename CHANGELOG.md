@@ -14,6 +14,10 @@ project follows Semantic Versioning.
 - Typed text-delta, completion, and metadata events
 - Bedrock ConverseStream support
 - Streaming cancellation and timeout handling
+- Structured JSON generation with `generateObject()`
+- Runtime JSON Schema validation using Ajv
+- Typed structured-output responses
+- Markdown JSON-fence handling
 
 ### Planned
 

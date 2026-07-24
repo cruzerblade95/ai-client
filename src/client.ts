@@ -18,6 +18,17 @@ import { withTimeout } from "./utils/timeout.js";
 
 import type { TextStreamEvent } from "./types/stream.js";
 
+import { Ajv, type AnySchema, type ValidateFunction } from "ajv";
+
+import type { GenerateObjectRequest, GenerateObjectResponse } from "./types/structured.js";
+
+import { parseJSONResponse } from "./utils/json.js";
+
+const schemaValidator = new Ajv({
+  allErrors: true,
+  strict: false
+});
+
 export class AIClient {
   private readonly provider: AIProviderClient;
 
@@ -57,6 +68,63 @@ export class AIClient {
       timeoutMs,
       request.signal
     );
+  }
+
+  public async generateObject<T>(
+    request: GenerateObjectRequest
+  ): Promise<GenerateObjectResponse<T>> {
+    let serializedSchema: string;
+
+    try {
+      serializedSchema = JSON.stringify(request.schema, null, 2);
+    } catch (error) {
+      throw new AIClientError("The JSON Schema could not be serialized", "INVALID_SCHEMA", {
+        cause: error
+      });
+    }
+
+    let validate: ReturnType<typeof schemaValidator.compile>;
+
+    try {
+      validate = schemaValidator.compile(request.schema as AnySchema);
+    } catch (error) {
+      throw new AIClientError("The provided JSON Schema is invalid", "INVALID_SCHEMA", {
+        cause: error
+      });
+    }
+
+    const { schema: _schema, prompt, ...generationOptions } = request;
+
+    const structuredPrompt = [
+      prompt,
+      "",
+      "Return only valid JSON.",
+      "Do not include an explanation.",
+      "The JSON must match this JSON Schema:",
+      serializedSchema
+    ].join("\n");
+
+    const response = await this.generateText({
+      ...generationOptions,
+      prompt: structuredPrompt
+    });
+
+    const parsedValue = parseJSONResponse(response.text);
+
+    if (!validate(parsedValue)) {
+      throw new AIClientError(
+        "The provider response did not match the JSON Schema",
+        "INVALID_STRUCTURED_OUTPUT",
+        {
+          cause: validate.errors
+        }
+      );
+    }
+
+    return {
+      ...response,
+      data: parsedValue as T
+    };
   }
 
   public async *generateTextStream(request: GenerateTextRequest): AsyncIterable<TextStreamEvent> {

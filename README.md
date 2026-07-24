@@ -42,13 +42,19 @@ console.log(response.text);
 ## Configuration
 
 ```ts
-interface AIClientOptions {
-  provider: "bedrock";
-  region?: string;
-  model: string;
-  maxRetries?: number;
-  timeout?: number;
-}
+type AIClientOptions =
+  | {
+      provider: "bedrock";
+      region?: string;
+      model: string;
+      maxRetries?: number;
+      timeout?: number;
+    }
+  | {
+      provider: AIProviderClient;
+      maxRetries?: number;
+      timeout?: number;
+    };
 ```
 
 ## AWS credential setup
@@ -109,6 +115,35 @@ try {
 } finally {
   client.destroy();
 }
+```
+
+## Custom providers
+
+`AIClient` can work with custom providers that implement
+the `AIProviderClient` interface.
+
+```ts
+import { AIClient, type AIProviderClient } from "@cruzerblade95/ai-client";
+
+const provider: AIProviderClient = {
+  async generateText(request) {
+    return {
+      text: `Custom response for: ${request.prompt}`,
+      model: "custom-model",
+      provider: "custom"
+    };
+  }
+};
+
+const client = new AIClient({
+  provider
+});
+
+const response = await client.generateText({
+  prompt: "Hello"
+});
+
+console.log(response.text);
 ```
 
 ## Step 8 — Run all checks

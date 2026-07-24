@@ -22,16 +22,21 @@ describe("AIClient", () => {
   });
 
   const createClient = (provider?: AIProviderClient): AIClient => {
-    return new AIClient(
-      {
-        provider: "bedrock",
-        region: "us-east-1",
-        model: "test-model",
+    if (provider) {
+      return new AIClient({
+        provider,
         maxRetries: 0,
         timeout: 30_000
-      },
-      provider
-    );
+      });
+    }
+
+    return new AIClient({
+      provider: "bedrock",
+      region: "us-east-1",
+      model: "test-model",
+      maxRetries: 0,
+      timeout: 30_000
+    });
   };
 
   describe("constructor", () => {
@@ -71,7 +76,16 @@ describe("AIClient", () => {
       );
     });
 
-    it("rejects missing region", () => {
+    it("allows Bedrock to resolve the region from AWS configuration", () => {
+      expect(() => {
+        new AIClient({
+          provider: "bedrock",
+          model: "test-model"
+        });
+      }).not.toThrow();
+    });
+
+    it("rejects an explicitly empty region", () => {
       expect(() => {
         new AIClient({
           provider: "bedrock",
@@ -209,6 +223,58 @@ describe("AIClient", () => {
         signal: expect.any(AbortSignal)
       });
     });
+  });
+
+  it("accepts a custom provider", async () => {
+    const customProvider: AIProviderClient = {
+      generateText: vi.fn(async () => ({
+        text: "Custom response",
+        model: "custom-model",
+        provider: "custom"
+      }))
+    };
+
+    const client = new AIClient({
+      provider: customProvider,
+      maxRetries: 0,
+      timeout: 30_000
+    });
+
+    const response = await client.generateText({
+      prompt: "Hello"
+    });
+
+    expect(response).toMatchObject({
+      text: "Custom response",
+      model: "custom-model",
+      provider: "custom"
+    });
+
+    expect(customProvider.generateText).toHaveBeenCalledWith({
+      prompt: "Hello",
+      signal: expect.any(AbortSignal)
+    });
+  });
+
+  it("destroys a custom provider", () => {
+    const destroy = vi.fn();
+
+    const customProvider: AIProviderClient = {
+      generateText: vi.fn(async () => ({
+        text: "Result",
+        model: "custom-model",
+        provider: "custom"
+      })),
+      destroy
+    };
+
+    const client = new AIClient({
+      provider: customProvider
+    });
+
+    client.destroy();
+
+    expect(destroy).toHaveBeenCalledOnce();
   });
 
   describe("errors", () => {

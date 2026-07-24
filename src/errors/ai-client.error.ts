@@ -5,6 +5,7 @@ export type AIClientErrorCode =
   | "PROVIDER_ERROR"
   | "INVALID_PROVIDER_RESPONSE"
   | "TIMEOUT"
+  | "REQUEST_ABORTED"
   | "MAX_RETRIES_EXCEEDED";
 
 export class AIClientError extends Error {

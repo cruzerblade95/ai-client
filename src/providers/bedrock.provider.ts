@@ -61,7 +61,7 @@ export class BedrockProvider extends BaseProvider {
         ];
       }
 
-      const response = await this.runCommand(commandInput);
+      const response = await this.runCommand(commandInput, request.signal);
 
       const content = response.output?.message?.content;
 
@@ -91,7 +91,12 @@ export class BedrockProvider extends BaseProvider {
     }
   }
 
-  public async runCommand(input: ConverseCommandInput): Promise<ConverseResponse> {
-    return await this.client.send(new ConverseCommand(input));
+  public async runCommand(
+    input: ConverseCommandInput,
+    signal?: AbortSignal
+  ): Promise<ConverseResponse> {
+    return await this.client.send(new ConverseCommand(input), {
+      abortSignal: signal
+    });
   }
 }

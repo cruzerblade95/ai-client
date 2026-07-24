@@ -103,7 +103,8 @@ describe("BedrockProvider", () => {
             ]
           }
         ]
-      })
+      }),
+      undefined
     );
   });
 

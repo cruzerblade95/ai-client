@@ -22,20 +22,28 @@ export class AIClient {
   public async generateText(request: GenerateTextRequest): Promise<GenerateTextResponse> {
     this.validateRequest(request);
 
-    const run = async () => {
-      return await this.provider.generateText(request);
-    };
-
     const maxRetries = this.options.maxRetries ?? 0;
 
-    const timeoutMs = this.options.timeout ?? 30000;
+    const timeoutMs = this.options.timeout ?? 30_000;
 
     return await withTimeout(
-      retryWithBackoff(run, {
-        maxRetries,
-        baseDelayMs: 1000
-      }),
-      timeoutMs
+      async (signal) => {
+        return await retryWithBackoff(
+          async () => {
+            return await this.provider.generateText({
+              ...request,
+              signal
+            });
+          },
+          {
+            maxRetries,
+            baseDelayMs: 1_000,
+            signal
+          }
+        );
+      },
+      timeoutMs,
+      request.signal
     );
   }
 

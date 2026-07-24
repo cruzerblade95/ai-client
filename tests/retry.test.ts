@@ -31,4 +31,26 @@ describe("retryWithBackoff", () => {
     });
     expect(fn).toHaveBeenCalledTimes(1);
   });
+
+  it("stops retrying when the signal is aborted", async () => {
+    const controller = new AbortController();
+
+    const operation = vi.fn(async () => {
+      controller.abort(new AIClientError("Operation was aborted", "REQUEST_ABORTED"));
+
+      throw new Error("Temporary failure");
+    });
+
+    await expect(
+      retryWithBackoff(operation, {
+        maxRetries: 3,
+        baseDelayMs: 1,
+        signal: controller.signal
+      })
+    ).rejects.toMatchObject({
+      code: "REQUEST_ABORTED"
+    });
+
+    expect(operation).toHaveBeenCalledOnce();
+  });
 });

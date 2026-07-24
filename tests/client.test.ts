@@ -153,7 +153,8 @@ describe("AIClient", () => {
       expect(provider.generateText).toHaveBeenCalledTimes(1);
 
       expect(provider.generateText).toHaveBeenCalledWith({
-        prompt: "Hello AI"
+        prompt: "Hello AI",
+        signal: expect.any(AbortSignal)
       });
     });
 
@@ -203,7 +204,10 @@ describe("AIClient", () => {
 
       await client.generateText(request);
 
-      expect(provider.generateText).toHaveBeenCalledWith(request);
+      expect(provider.generateText).toHaveBeenCalledWith({
+        ...request,
+        signal: expect.any(AbortSignal)
+      });
     });
   });
 

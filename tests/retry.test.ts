@@ -166,4 +166,45 @@ describe("retryWithBackoff", () => {
 
     expect(operation).toHaveBeenCalledOnce();
   });
+
+  it.each(["AUTHENTICATION_ERROR", "ACCESS_DENIED", "MODEL_NOT_FOUND", "INVALID_REQUEST"] as const)(
+    "does not retry %s",
+    async (code) => {
+      const operation = vi.fn(async () => {
+        throw new AIClientError("Permanent error", code);
+      });
+
+      await expect(
+        retryWithBackoff(operation, {
+          maxRetries: 3,
+          baseDelayMs: 1,
+          random: () => 0
+        })
+      ).rejects.toMatchObject({
+        code
+      });
+
+      expect(operation).toHaveBeenCalledOnce();
+    }
+  );
+
+  it.each(["RATE_LIMITED", "NETWORK_ERROR", "PROVIDER_UNAVAILABLE"] as const)(
+    "retries temporary error %s",
+    async (code) => {
+      const operation = vi
+        .fn()
+        .mockRejectedValueOnce(new AIClientError("Temporary error", code))
+        .mockResolvedValueOnce("success");
+
+      const result = await retryWithBackoff(operation, {
+        maxRetries: 1,
+        baseDelayMs: 1,
+        random: () => 0
+      });
+
+      expect(result).toBe("success");
+
+      expect(operation).toHaveBeenCalledTimes(2);
+    }
+  );
 });

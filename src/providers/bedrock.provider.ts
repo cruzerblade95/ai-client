@@ -13,6 +13,8 @@ import type { GenerateTextResponse } from "../types/response.js";
 
 import { BaseProvider } from "./base.provider.js";
 
+import { mapBedrockError } from "./bedrock-error.js";
+
 export interface BedrockProviderOptions {
   region?: string;
   model: string;
@@ -81,13 +83,7 @@ export class BedrockProvider extends BaseProvider {
         }
       };
     } catch (error) {
-      if (error instanceof AIClientError) {
-        throw error;
-      }
-
-      throw new AIClientError("Bedrock request failed", "PROVIDER_ERROR", {
-        cause: error
-      });
+      throw mapBedrockError(error);
     }
   }
 

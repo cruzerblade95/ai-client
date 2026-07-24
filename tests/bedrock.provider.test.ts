@@ -237,4 +237,32 @@ describe("BedrockProvider", () => {
       cause: originalError
     });
   });
+
+  it("maps Bedrock access-denied failures", async () => {
+    const provider = new BedrockProvider({
+      region: "us-east-1",
+      model: "amazon.nova-lite-v1:0"
+    });
+
+    const accessDeniedError = Object.assign(new Error("Access denied"), {
+      name: "AccessDeniedException",
+      $metadata: {
+        httpStatusCode: 403,
+        requestId: "request-403"
+      }
+    });
+
+    vi.spyOn(provider, "runCommand").mockRejectedValue(accessDeniedError);
+
+    await expect(
+      provider.generateText({
+        prompt: "Hello"
+      })
+    ).rejects.toMatchObject({
+      code: "ACCESS_DENIED",
+      statusCode: 403,
+      requestId: "request-403",
+      cause: accessDeniedError
+    });
+  });
 });

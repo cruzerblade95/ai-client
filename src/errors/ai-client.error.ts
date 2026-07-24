@@ -2,22 +2,40 @@ export type AIClientErrorCode =
   | "INVALID_PROMPT"
   | "INVALID_CONFIGURATION"
   | "UNSUPPORTED_PROVIDER"
-  | "PROVIDER_ERROR"
   | "INVALID_PROVIDER_RESPONSE"
+  | "AUTHENTICATION_ERROR"
+  | "ACCESS_DENIED"
+  | "MODEL_NOT_FOUND"
+  | "RATE_LIMITED"
+  | "INVALID_REQUEST"
+  | "NETWORK_ERROR"
+  | "PROVIDER_UNAVAILABLE"
+  | "PROVIDER_ERROR"
   | "TIMEOUT"
   | "REQUEST_ABORTED"
   | "MAX_RETRIES_EXCEEDED";
 
+export interface AIClientErrorOptions {
+  cause?: unknown;
+  statusCode?: number;
+  requestId?: string;
+}
+
 export class AIClientError extends Error {
   public readonly code: AIClientErrorCode;
 
-  public readonly cause?: unknown;
+  public readonly statusCode?: number;
 
-  public constructor(message: string, code: AIClientErrorCode, options?: { cause?: unknown }) {
-    super(message);
+  public readonly requestId?: string;
+
+  public constructor(message: string, code: AIClientErrorCode, options?: AIClientErrorOptions) {
+    super(message, {
+      cause: options?.cause
+    });
 
     this.name = "AIClientError";
     this.code = code;
-    this.cause = options?.cause;
+    this.statusCode = options?.statusCode;
+    this.requestId = options?.requestId;
   }
 }
